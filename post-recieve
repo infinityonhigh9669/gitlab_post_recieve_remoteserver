@@ -1,0 +1,37 @@
+#!/bin/bash
+
+REPO=repo_name
+
+# Dir paths on remote server
+# These are associated with branches within a git project
+LIVE_BRANCH="master"
+LIVE="git@host:/usr/share/nginx/html/"
+#STAGE_BRANCH="develop"
+#STAGE="git@host:/usr/share/nginx/html/"
+
+if ! [ -t 0 ]; then
+        read -a ref
+fi
+
+# Get branch name from ref head
+IFS='/' read -ra REF <<< "${ref[2]}"
+branch="${REF[2]}"
+
+# Make tmp dir for extracting files and cleaning up .git (we dont want them on the live site)
+tmpdir="/tmp/$REPO/$branch"
+mkdir -p $tmpdir
+
+# Assuming git is installed at /home/git/...
+git --work-tree=$tmpdir --git-dir="/var/opt/gitlab/git-data/repositories/repos/$REPO.git" checkout -f $branch
+
+# If pushing to LIVE_BRANCH, deploy on LIVE
+if [ "$LIVE_BRANCH" == "$branch" ]; then
+  rsync -vzre ssh --delete "$tmpdir/" $LIVE
+fi
+
+# If pushing to STAGE_BRANCH, deploy on STAGE
+#if [ "$STAGE_BRANCH" == "$branch" ]; then
+  #rsync -vzre ssh --delete "$tmpdir/" $STAGE
+#fi
+
+rm -rf "/tmp/$REPO"
